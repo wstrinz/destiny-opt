@@ -53,9 +53,14 @@
     itemsStats: function(bucket) {
       bucket = bucket || 'BUCKET_PRIMARY_WEAPON';
       return $j('.' + bucket + ' .bucketItem').map(function(indx,el){
-        return {name: $j(el).find('.itemName').text(),
-        stat: $j(el).find('.primaryStat .statValue').attr('data-statvalue'),
+        var baseStats = {name: $j(el).find('.itemName').text(),
+        light: $j(el).find('.primaryStat .statValue').attr('data-statvalue'),
         el: el};
+
+        var otherStats = _.map($j(el).find('.valueNumber'), (sStat) => [$j(sStat).attr('data-statid'), $j(sStat).attr('data-statvalue')]);
+        _.each(otherStats, (s) => baseStats[s[0]] = s[1]);
+
+        return baseStats;
       });
     },
 
@@ -68,8 +73,11 @@
                   "BUCKET_CHEST",
                   "BUCKET_LEGS",
                   "BUCKET_CLASS_ITEMS"],
-
     //"BUCKET_ARTIFACT"
+
+    optStats: ["STAT_MAGAZINE_SIZE", "STAT_INTELLECT", "STAT_DISCIPLINE", "STAT_STRENGTH"],
+    //_.uniq(_.map($j('tr.itemStat.usesStatNumbers'), (s) => $j(s).attr('data-id')))
+
     currentEquips: () => {
        return _.map($j('div.bucketItem.equipped'),
               (el) => { return $j(el).attr('data-iteminstanceid'); });
@@ -137,30 +145,35 @@
       return equipRecurse(instanceIds);
     },
 
-    pickBestLight: function(bucket){
-        return new Promise(function(resolve, reject){
-          var best = _.maxBy(dOpt.itemsStats(bucket), function(w){return parseInt(w.stat);});
-          if($j(best.el).hasClass('equipped')){
-            console.log('best', bucket, 'already equipped', best.name);
-            resolve(best.name + ' already equipped');
-          }
-          else {
-            console.log("picking", best);
-            $j(best.el).click();
-            dOpt.util.waitForElement('div.button.equipItem').then(function(){
-              $j('div.button.equipItem').click();
-              resolve('Equipping ' + best.name);
-            });
-          }
-        });
+    pickBestForStat: (bucket, stat) => {
+      return new Promise(function(resolve, reject){
+        var best = _.maxBy(dOpt.itemsStats(bucket), function(w){return parseInt(w[stat]);});
+
+        if(!best){
+          resolve('no ' + stat + ' items for ' + bucket);
+        }
+        else if($j(best.el).hasClass('equipped')){
+          //console.log('best', bucket, 'already equipped', best.name);
+          resolve('best ' + stat + ' item ' + '(' + best.name + ')' + ' already equipped');
+        }
+        else {
+          //console.log("picking", best);
+          $j(best.el).click();
+          dOpt.util.waitForElement('div.button.equipItem').then(function(){
+            $j('div.button.equipItem').click();
+            resolve('Equipping ' + best.name + ' for ' + stat);
+          });
+        }
+      });
     },
 
-    pickBestAll: () => {
+    pickBestFromSelected: () => {
       var dup = dOpt.optBuckets.slice();
       var fst = dup.pop();
+      var targetStat = $j('#statSelector').val();
       var pickBestLoop = (list, start, memo) => {
         memo = memo || [];
-        dOpt.pickBestLight(start).then((resp) => {
+        dOpt.pickBestForStat(start, targetStat).then((resp) => {
           memo.push(resp);
           if(list.length > 0){
             var nex = list.pop();
@@ -180,22 +193,34 @@
       addUi: () => {
         var template = `
         <div id="dopt">
-          <h1>Destiny Optimizer</h1>
-          <div id="dopt-messages">
-            <ul id="dopt-message-list">
-              <li>Ready! (probably)<li>
-            </ul>
-            <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
+          <div onclick=dOpt.ui.showHideUi() id="dopt-header">
+            <h1>Destiny Optimizer</h1>
           </div>
-          <div id="dopt-inv-controls">
-            <button onclick="dOpt.pickBestAll()">Optimize on Light</button><br>
-            <button onclick="dOpt.saveEquips('quicksave')">Save Current Config</button><br>
-            <button onclick="dOpt.loadEquips('quicksave')">Load Saved Config</button><br>
-            <button onclick="dOpt.viewConfig('quicksave')">View Saved Config (this doesn't work right now)</button><br>
+          <div id="dopt-main">
+            <div id="dopt-messages">
+              <ul id="dopt-message-list">
+                <li>Ready! Click the title above to show/hide<li>
+              </ul>
+              <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
+            </div>
+            <div id="dopt-inv-controls">
+              <select id="statSelector">
+                  <option value="light">Light</option>
+              </select>
+              <br>
+              <button onclick="dOpt.pickBestFromSelected()">Optimize</button><br>
+              <button onclick="dOpt.saveEquips('quicksave')">Save Current Config</button><br>
+              <button onclick="dOpt.loadEquips('quicksave')">Load Saved Config</button><br>
+              <button onclick="dOpt.viewConfig('quicksave')">View Saved Config (this doesn't work right now)</button><br>
+            </div>
           </div>
         </div>
 `;
         $j('#guardianTop').prepend(template);
+        _.each(dOpt.optStats, (stat) => {
+            var htmls = '<option value="' + stat + '">' + stat + '</option>';
+            $j('#statSelector').append(htmls);
+        });
       },
 
       displayMessage: (msg) => {
@@ -204,7 +229,9 @@
 
       clearMessages: () => {
         $j('#dopt-message-list').html('');
-      }
+      },
+
+      showHideUi: () => { $j('#dopt-main').toggle(); }
     }
   };
 
