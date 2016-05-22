@@ -89,7 +89,7 @@
           equips: dOpt.currentEquips()
         };
         window.localStorage.setItem(name, JSON.stringify(model));
-        dOpt.ui.displayMessage("saved " + name + " with equips " + JSON.stringify(model));
+        dOpt.ui.displayMessage("Saved " + name + " with equips " + JSON.stringify(model));
     },
 
     loadEquips: (name) => {
@@ -110,14 +110,14 @@
           var name = $j(el).find('div.itemName').text();
           if(el.length > 0) {
             if(el.hasClass('equipped')){
-              dOpt.ui.displayMessage(name + ' already equipped');
+              dOpt.ui.displayMessage('Already Equipped:' + name);
               resolve(false);
             }
             else {
               $j(el).click();
               dOpt.util.waitForElement('div.button.equipItem').then(function(){
                 $j('div.button.equipItem').click();
-                dOpt.ui.displayMessage('Equipped ' + name);
+                dOpt.ui.displayMessage('Equipped: ' + name);
                 resolve(true);
               });
             }
@@ -150,12 +150,12 @@
         var best = _.maxBy(dOpt.itemsStats(bucket), function(w){return parseInt(w[stat]);});
 
         if(!best){
-          dOpt.ui.displayMessage('no ' + stat + ' items for ' + bucket);
+          dOpt.ui.displayMessage('No ' + stat + ' items for ' + bucket);
           resolve(false);
         }
         else if($j(best.el).hasClass('equipped')){
           //console.log('best', bucket, 'already equipped', best.name);
-          dOpt.ui.displayMessage('best ' + stat + ' item ' + '(' + best.name + ')' + ' already equipped');
+          dOpt.ui.displayMessage('Already Equipped: ' + best.name + ' (best ' + stat + ' in ' + bucket + ')');
           resolve(false);
         }
         else {
@@ -163,7 +163,7 @@
           $j(best.el).click();
           dOpt.util.waitForElement('div.button.equipItem').then(function(){
             $j('div.button.equipItem').click();
-             dOpt.ui.displayMessage('Equipping ' + best.name + ' for ' + stat);
+            dOpt.ui.displayMessage('Equipped: ' + best.name + ' (best ' + stat + ' in ' + bucket + ')');
             resolve(true);
           });
         }
@@ -199,12 +199,6 @@
             <h1>Destiny Optimizer</h1>
           </div>
           <div id="dopt-main">
-            <div id="dopt-messages">
-              <ul id="dopt-message-list">
-                <li>Ready! Click the title above to show/hide<li>
-              </ul>
-              <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
-            </div>
             <div id="dopt-inv-controls">
               <select id="statSelector">
                   <option value="light">Light</option>
@@ -214,6 +208,12 @@
               <button onclick="dOpt.saveEquips('quicksave')">Save Current Config</button><br>
               <button onclick="dOpt.loadEquips('quicksave')">Load Saved Config</button><br>
               <button onclick="dOpt.viewConfig('quicksave')">View Saved Config (this doesn't work right now)</button><br>
+              <div id="dopt-messages">
+                <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
+                <ul id="dopt-message-list">
+                  <li>Ready! Click the title above to show/hide<li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
