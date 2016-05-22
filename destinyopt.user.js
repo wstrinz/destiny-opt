@@ -10,7 +10,7 @@
 // @require https://raw.githubusercontent.com/lodash/lodash/4.12.0/dist/lodash.js
 
 // ==/UserScript==
-
+/*jshint esnext: true*/
 
 (function() {
   'use strict';
@@ -70,6 +70,57 @@
                   "BUCKET_CLASS_ITEMS"],
 
     //"BUCKET_ARTIFACT"
+    currentEquips: () => {
+       return _.map($j('div.bucketItem.equipped'),
+              (el) => { return $j(el).attr('data-iteminstanceid'); });
+    },
+
+    saveEquips: (name) => {
+        name = name || "_default_equips";
+        var model = {
+          equips: currentEquips()
+        };
+        window.localStorage.setItem(name, JSON.stringify(model));
+    },
+
+    equipList: (instanceIds) => {
+      var equipId = (id) => {
+        return new Promise((resolve, reject) => {
+          var el = $j('div.bucketItem[data-iteminstanceid=' + id + ']');
+          if(el.length > 0) {
+            if(el.hasClass('equipped')){
+              resolve(false);
+            }
+            else {
+              $j(el).click();
+              dOpt.util.waitForElement('div.button.equipItem').then(function(){
+                $j('div.button.equipItem').click();
+                resolve(true);
+              });
+            }
+          }
+          else {
+            reject("can't find " + id);
+          }
+        });
+      };
+
+      var equipRecurse = (list) => {
+        var currId = _.head(list);
+        if(list.length === 0){
+          console.log('done!');
+          return true;
+        }
+        else {
+          return equipId(currId).then(ret => {
+            console.log('equipped', currId, ret);
+            equipRecurse(_.tail(list));
+          });
+        }
+      };
+
+      return equipRecurse(instanceIds);
+    },
 
     pickBestLight: function(bucket){
         return new Promise(function(resolve, reject){
