@@ -150,18 +150,21 @@
         var best = _.maxBy(dOpt.itemsStats(bucket), function(w){return parseInt(w[stat]);});
 
         if(!best){
-          resolve('no ' + stat + ' items for ' + bucket);
+          dOpt.ui.displayMessage('no ' + stat + ' items for ' + bucket);
+          resolve(false);
         }
         else if($j(best.el).hasClass('equipped')){
           //console.log('best', bucket, 'already equipped', best.name);
-          resolve('best ' + stat + ' item ' + '(' + best.name + ')' + ' already equipped');
+          dOpt.ui.displayMessage('best ' + stat + ' item ' + '(' + best.name + ')' + ' already equipped');
+          resolve(false);
         }
         else {
           //console.log("picking", best);
           $j(best.el).click();
           dOpt.util.waitForElement('div.button.equipItem').then(function(){
             $j('div.button.equipItem').click();
-            resolve('Equipping ' + best.name + ' for ' + stat);
+             dOpt.ui.displayMessage('Equipping ' + best.name + ' for ' + stat);
+            resolve(true);
           });
         }
       });
@@ -182,7 +185,6 @@
           }
           else {
             console.log('done!');
-            dOpt.ui.displayMessage(JSON.stringify(memo));
           }
         });
       };
