@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Destiny Opt
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  try to take over the world!
+// @version      0.2
+// @description  Make robots to play games for us
 // @author       You
 // @match        https://www.bungie.net/en/Legend/Gear/*
 // @grant        none
@@ -17,7 +17,7 @@
   window.$j = jQuery.noConflict(true);
   window.dOpt = {
     util: {
-      waitForAjax: function (interval) {
+      waitForAjax: (interval) => {
         interval = interval || 0;
         return new Promise(function (resolve, reject) {
           var pollForAjax;
@@ -78,23 +78,38 @@
     saveEquips: (name) => {
         name = name || "_default_equips";
         var model = {
-          equips: currentEquips()
+          equips: dOpt.currentEquips()
         };
         window.localStorage.setItem(name, JSON.stringify(model));
+        dOpt.ui.displayMessage("saved " + name + " with equips " + JSON.stringify(model));
+    },
+
+    loadEquips: (name) => {
+        name = name || "_default_equips";
+        var model = JSON.parse(window.localStorage.getItem(name));
+        if(model){
+          console.log('attempting to load', model.equips);
+          dOpt.equipList(model.equips);
+        } else {
+          dOpt.ui.displayMessage("no loadout named" + name);
+        }
     },
 
     equipList: (instanceIds) => {
       var equipId = (id) => {
         return new Promise((resolve, reject) => {
           var el = $j('div.bucketItem[data-iteminstanceid=' + id + ']');
+          var name = $j(el).find('div.itemName').text();
           if(el.length > 0) {
             if(el.hasClass('equipped')){
+              dOpt.ui.displayMessage(name + ' already equipped');
               resolve(false);
             }
             else {
               $j(el).click();
               dOpt.util.waitForElement('div.button.equipItem').then(function(){
                 $j('div.button.equipItem').click();
+                dOpt.ui.displayMessage('Equipped ' + name);
                 resolve(true);
               });
             }
@@ -127,14 +142,14 @@
           var best = _.maxBy(dOpt.itemsStats(bucket), function(w){return parseInt(w.stat);});
           if($j(best.el).hasClass('equipped')){
             console.log('best', bucket, 'already equipped', best.name);
-            resolve(false);
+            resolve(best.name + ' already equipped');
           }
           else {
             console.log("picking", best);
             $j(best.el).click();
             dOpt.util.waitForElement('div.button.equipItem').then(function(){
               $j('div.button.equipItem').click();
-              resolve(true);
+              resolve('Equipping ' + best.name);
             });
           }
         });
@@ -143,19 +158,55 @@
     pickBestAll: () => {
       var dup = dOpt.optBuckets.slice();
       var fst = dup.pop();
-      var pickBestLoop = (list, start) => {
-        dOpt.pickBestLight(start).then(() => {
+      var pickBestLoop = (list, start, memo) => {
+        memo = memo || [];
+        dOpt.pickBestLight(start).then((resp) => {
+          memo.push(resp);
           if(list.length > 0){
             var nex = list.pop();
             console.log('setting', nex);
-            pickBestLoop(list, nex);
+            pickBestLoop(list, nex, memo);
           }
           else {
             console.log('done!');
+            dOpt.ui.displayMessage(JSON.stringify(memo));
           }
         });
       };
       pickBestLoop(dup, fst);
+    },
+
+    ui: {
+      addUi: () => {
+        var template = `
+        <div id="dopt">
+          <h1>Destiny Optimizer</h1>
+          <div id="dopt-messages">
+            <ul id="dopt-message-list">
+              <li>Ready! (probably)<li>
+            </ul>
+            <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
+          </div>
+          <div id="dopt-inv-controls">
+            <button onclick="dOpt.pickBestAll()">Optimize on Light</button><br>
+            <button onclick="dOpt.saveEquips('quicksave')">Save Current Config</button><br>
+            <button onclick="dOpt.loadEquips('quicksave')">Load Saved Config</button><br>
+            <button onclick="dOpt.viewConfig('quicksave')">View Saved Config (this doesn't work right now)</button><br>
+          </div>
+        </div>
+`;
+        $j('#guardianTop').prepend(template);
+      },
+
+      displayMessage: (msg) => {
+        $j('#dopt-message-list').append('<li>' + msg + '</li>');
+      },
+
+      clearMessages: () => {
+        $j('#dopt-message-list').html('');
+      }
     }
   };
+
+  $j(document).ready(dOpt.ui.addUi);
 })();
