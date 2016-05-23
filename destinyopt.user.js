@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Destiny Opt
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Make robots to play games for us
 // @author       You
 // @match        https://www.bungie.net/en/Legend/Gear/*
@@ -56,8 +56,8 @@
         var baseStats = {name: $j(el).find('.itemName').text(),
         light: $j(el).find('.primaryStat .statValue').attr('data-statvalue'),
         el: el};
-
-        var otherStats = _.map($j(el).find('.valueNumber'), (sStat) => [$j(sStat).attr('data-statid'), $j(sStat).attr('data-statvalue')]);
+        var statEls = $j(el).find('span[data-statid]');
+        var otherStats = _.map(statEls, (sStat) => [$j(sStat).attr('data-statid'), $j(sStat).attr('data-statvalue')]);
         _.each(otherStats, (s) => baseStats[s[0]] = s[1]);
 
         return baseStats;
@@ -75,8 +75,8 @@
                   "BUCKET_CLASS_ITEMS"],
     //"BUCKET_ARTIFACT"
 
-    optStats: ["STAT_MAGAZINE_SIZE", "STAT_INTELLECT", "STAT_DISCIPLINE", "STAT_STRENGTH"],
-    //_.uniq(_.map($j('tr.itemStat.usesStatNumbers'), (s) => $j(s).attr('data-id')))
+    optStats: () => _.uniq(_.map($j('tr.itemStat'), (is) => $j(is).attr('data-id'))),
+
 
     currentEquips: () => {
        return _.map($j('div.bucketItem.equipped'),
@@ -193,13 +193,8 @@
 
     ui: {
       addUi: () => {
-        var template = `
-        <div id="dopt">
-          <div onclick=dOpt.ui.showHideUi() id="dopt-header">
-            <h1>Destiny Optimizer</h1>
-          </div>
-          <div id="dopt-main">
-            <div id="dopt-inv-controls">
+        var controlsDiv = `
+           <div id="dopt-inv-controls">
               <select id="statSelector">
                   <option value="light">Light</option>
               </select>
@@ -208,18 +203,29 @@
               <button onclick="dOpt.saveEquips('quicksave')">Save Current Config</button><br>
               <button onclick="dOpt.loadEquips('quicksave')">Load Saved Config</button><br>
               <button onclick="dOpt.viewConfig('quicksave')">View Saved Config (this doesn't work right now)</button><br>
-              <div id="dopt-messages">
-                <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
-                <ul id="dopt-message-list">
-                  <li>Ready! Click the title above to show/hide<li>
-                </ul>
-              </div>
+           </div>`;
+
+         var msgDiv = `
+           <div id="dopt-messages">
+             <button onclick="dOpt.ui.clearMessages()">Clear Messages</button><br>
+             <ul id="dopt-message-list">
+               <li>Ready! Click the title above to show/hide<li>
+             </ul>
+           </div>`;
+
+        var template = `
+          <div id="dopt">
+            <div onclick=dOpt.ui.showHideUi() id="dopt-header">
+              <h1>Destiny Optimizer</h1>
             </div>
-          </div>
-        </div>
-`;
+            <div id="dopt-main">
+              ${controlsDiv}
+              ${msgDiv}
+            </div>
+          </div>`;
+
         $j('#guardianTop').prepend(template);
-        _.each(dOpt.optStats, (stat) => {
+        _.each(dOpt.optStats(), (stat) => {
             var htmls = '<option value="' + stat + '">' + stat + '</option>';
             $j('#statSelector').append(htmls);
         });
